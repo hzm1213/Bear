@@ -45,8 +45,8 @@ jobs:
       - name: Check if files changed to decide regenerate allinone
         id: checkdiff
         run: |
-          git config --global user.email "snihgmy@gmail.com"
-          git config --global user.name "snihgmy"
+          git config --global user.email "huangzm1213@gmail.com"
+          git config --global user.name "hzm1213"
           git add .
           git diff --cached --quiet || echo "changed" > changed.txt
 
