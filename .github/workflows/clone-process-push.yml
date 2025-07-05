@@ -1,0 +1,72 @@
+name: Clone, Rename, Conditional Merge, and Push
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout self repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT }}
+
+      - name: Clone target repo
+        run: |
+          rm -rf source-repo
+          git clone https://github.com/suiyuan8/vless.git source-repo
+          rm -rf source-repo/.git
+
+      - name: Rename files sequentially (no extension)
+        run: |
+          cd source-repo
+          rm -rf ../final
+          mkdir ../final
+          i=1
+          for file in $(find . -type f | sort); do
+            num=$(printf "%03d" $i)
+            cp "$file" "../final/suiyuan8-$num"
+            i=$((i+1))
+          done
+          cd ..
+
+      - name: Clean existing suiyuan8-* files in repo root
+        run: |
+          rm -f suiyuan8-*
+
+      - name: Copy renamed files to repo root
+        run: |
+          cp -r final/* .
+
+      - name: Check if files changed to decide regenerate allinone
+        id: checkdiff
+        run: |
+          git config --global user.email "snihgmy@gmail.com"
+          git config --global user.name "snihgmy"
+          git add .
+          git diff --cached --quiet || echo "changed" > changed.txt
+
+      - name: Generate allinone if changed
+        if: steps.checkdiff.outputs.changed == 'changed' || always()  # 也可改为 if: - 根据实际情况调整
+        run: |
+          > allinone
+          for f in suiyuan8-*; do
+            if [ -s "$f" ]; then
+              # 读取最后一字符的16进制码
+              lastchar=$(tail -c1 "$f" | od -An -t x1 | tr -d ' \n')
+              cat "$f" >> allinone
+              if [ "$lastchar" != "0a" ]; then
+                echo "" >> allinone
+              fi
+            fi
+          done
+
+      - name: Commit and push changes
+        run: |
+          git add .
+          git commit -m "Update from suiyuan8/vless, rename no ext, conditional merge allinone" || echo "No changes to commit"
+          git push
