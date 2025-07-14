@@ -48,15 +48,18 @@ jobs:
           git config --global user.email "huangzm1213@gmail.com"
           git config --global user.name "hzm1213"
           git add .
-          git diff --cached --quiet || echo "changed" > changed.txt
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Generate allinone if changed
-        if: steps.checkdiff.outputs.changed == 'changed' || always()  # 也可改为 if: - 根据实际情况调整
+        if: steps.checkdiff.outputs.changed == 'true' || always()
         run: |
           > allinone
           for f in suiyuan8-*; do
             if [ -s "$f" ]; then
-              # 读取最后一字符的16进制码
               lastchar=$(tail -c1 "$f" | od -An -t x1 | tr -d ' \n')
               cat "$f" >> allinone
               if [ "$lastchar" != "0a" ]; then
@@ -65,8 +68,13 @@ jobs:
             fi
           done
 
+      - name: Generate allinoneb64 (Base64 encode in single line)
+        if: steps.checkdiff.outputs.changed == 'true' || always()
+        run: |
+          base64 -w0 allinone > allinoneb64
+
       - name: Commit and push changes
         run: |
           git add .
-          git commit -m "Update from suiyuan8/vless, rename no ext, conditional merge allinone" || echo "No changes to commit"
+          git commit -m "Update from suiyuan8/vless, rename no ext, regenerate allinone and allinoneb64" || echo "No changes to commit"
           git push
